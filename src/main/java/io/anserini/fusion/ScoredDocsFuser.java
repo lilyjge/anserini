@@ -36,7 +36,6 @@ import org.apache.lucene.document.StoredField;
 
 import io.anserini.search.ScoredDocs;
 
-//replace topic wtih const
 public class ScoredDocsFuser {
   public static final String TOPIC = "TOPIC";
 
@@ -81,7 +80,7 @@ public class ScoredDocsFuser {
     }
   
     if (reSort) {
-      ScoredDocsFuser.sortScoredDocs(scoredDocs);
+      ScoredDocsFuser.sortScoredDocs(scoredDocs, true, 0);
     }
 
     return scoredDocs;
@@ -147,15 +146,66 @@ public class ScoredDocsFuser {
   }
 
   /**
-   * Merges multiple ScoredDocs instances into a single ScoredDocs instance.
-   * The merged ScoredDocs will contain the top documents for each topic, with scores summed across the input runs.
-   *
-   * @param runs  List of ScoredDocs instances to merge.
-   * @param depth Maximum number of documents to consider from each run for each topic (null for no limit).
-   * @param k     Maximum number of top documents to include in the merged run for each topic (null for no limit).
-   * @return A new ScoredDocs instance containing the merged results.
-   * @throws IllegalArgumentException if less than 2 runs are provided.
+   * Sorts given ScoredDocs by topic, then by score.
+   * 
+   * @param scoredDocs ScoredDocs object to be sorted.
    */
+  public static int sortScoredDocs(ScoredDocs scoredDocs, Boolean scoreFirst, int topN){
+    Integer[] indices = new Integer[scoredDocs.lucene_documents.length];
+    for (int i = 0; i < indices.length; i++) {
+      indices[i] = i;
+    }
+
+    Arrays.sort(indices, (index1, index2) -> {
+      String topic1 = scoredDocs.lucene_documents[index1].get(TOPIC);
+      String topic2 = scoredDocs.lucene_documents[index2].get(TOPIC);
+      int topicComparison = (topic1.compareTo(topic2));
+      if (topicComparison != 0) {
+        return topicComparison;
+      }
+      int scoreComparison = Float.compare(scoredDocs.scores[index2], scoredDocs.scores[index1]);
+      int docComparison = scoredDocs.docids[index1].compareTo(scoredDocs.docids[index2]);
+      if(scoreFirst){
+        return scoreComparison != 0 ? scoreComparison : docComparison;
+      }
+      else{
+        return docComparison != 0 ? docComparison : scoreComparison;
+      }
+    });
+
+    Document[] sorted_lucene_documents = new Document[indices.length];
+    String[] sortedDocids = new String[indices.length];
+    float[] sortedScores = new float[indices.length];
+    int[] sortedRanks = new int[indices.length];
+    String curQuery = "";
+    int rank = 0;
+    int overflow = 0;
+    for (int i = 0; i < indices.length; i++) {
+      int index = indices[i];
+      sorted_lucene_documents[i] = scoredDocs.lucene_documents[index];
+      sortedDocids[i] = scoredDocs.docids[index];
+      sortedScores[i] = scoredDocs.scores[index];
+      if(!curQuery.equals(scoredDocs.lucene_documents[index].get(TOPIC))){
+        rank = 1;
+        curQuery = scoredDocs.lucene_documents[index].get(TOPIC);
+      }
+      else{
+        rank++;
+      }
+      sortedRanks[i] = rank;
+      if(rank > topN){
+        overflow++;
+      }
+    }
+
+    scoredDocs.lucene_documents = sorted_lucene_documents;
+    scoredDocs.docids = sortedDocids;
+    scoredDocs.scores = sortedScores;
+    scoredDocs.lucene_docids = sortedRanks;
+    System.out.println(overflow);
+    return overflow;
+  }
+
   public static ScoredDocs merge(List<ScoredDocs> runs, Integer depth, Integer k) {
     if (runs.size() < 2) {
       throw new IllegalArgumentException("Merge requires at least 2 runs.");
@@ -183,7 +233,7 @@ public class ScoredDocsFuser {
       // for the current query, a list of all docids and scores, sorted by scores
       List<Map.Entry<String, Float>> sortedDocScores = docScores.get(query).entrySet().stream()
         .map(entry -> Map.entry(entry.getKey(), entry.getValue().getKey()))
-        .sorted(Map.Entry.<String, Float>comparingByValue().reversed())
+        .sorted(Map.Entry.<String, Float>comparingByValue().reversed().thenComparing(Map.Entry.<String, Float>comparingByKey()))
         .limit(k != null ? k : Integer.MAX_VALUE)
         .collect(Collectors.toList());
 
@@ -208,45 +258,6 @@ public class ScoredDocsFuser {
   }
 
   /**
-   * Sorts given ScoredDocs by topic, then by score.
-   * 
-   * @param scoredDocs ScoredDocs object to be sorted.
-   */
-  public static void sortScoredDocs(ScoredDocs scoredDocs){
-    Integer[] indices = new Integer[scoredDocs.lucene_documents.length];
-    for (int i = 0; i < indices.length; i++) {
-      indices[i] = i;
-    }
-
-    Arrays.sort(indices, (index1, index2) -> {
-      String topic1 = scoredDocs.lucene_documents[index1].get(TOPIC);
-      String topic2 = scoredDocs.lucene_documents[index2].get(TOPIC);
-      int topicComparison = (topic1.compareTo(topic2));
-      if (topicComparison != 0) {
-        return topicComparison;
-      }
-      return Float.compare(scoredDocs.scores[index2], scoredDocs.scores[index1]);
-    });
-
-    Document[] sorted_lucene_documents = new Document[indices.length];
-    String[] sortedDocids = new String[indices.length];
-    float[] sortedScores = new float[indices.length];
-    int[] sortedRanks = new int[indices.length];
-    for (int i = 0; i < indices.length; i++) {
-      int index = indices[i];
-      sorted_lucene_documents[i] = scoredDocs.lucene_documents[index];
-      sortedDocids[i] = scoredDocs.docids[index];
-      sortedScores[i] = scoredDocs.scores[index];
-      sortedRanks[i] = scoredDocs.lucene_docids[index];
-    }
-
-    scoredDocs.lucene_documents = sorted_lucene_documents;
-    scoredDocs.docids = sortedDocids;
-    scoredDocs.scores = sortedScores;
-    scoredDocs.lucene_docids = sortedRanks;
-  }
-
-  /**
    * Saves a ScoredDocs run data to a text file in the TREC run format.
    * 
    * @param outputPath Path to the output file.
@@ -260,7 +271,7 @@ public class ScoredDocsFuser {
       throw new IllegalStateException("Nothing to save. ScoredDocs is empty");
     }
 
-    ScoredDocsFuser.sortScoredDocs(run);
+    // ScoredDocsFuser.sortScoredDocs(run);
     try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
       for (int i = 0; i < run.lucene_documents.length; i++) {
         writer.write(String.format("%s Q0 %s %d %.6f %s%n", 
