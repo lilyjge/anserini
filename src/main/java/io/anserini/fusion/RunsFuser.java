@@ -20,18 +20,22 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.List;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.StoredField;
 import org.kohsuke.args4j.Option;
 
 import io.anserini.search.ScoredDocs;
 
+import java.time.Duration;
+import java.time.Instant;
 /**
  * Main logic class for Fusion
  */
@@ -102,6 +106,7 @@ public class RunsFuser {
    */
   public static ScoredDocs reciprocalRankFusion(List<ScoredDocs> runs, int rrf_k, int depth, int topN) {
     // Compute the rrf score as a double to reduce accuracy loss due to floating-point arithmetic.
+    // Instant start = Instant.now();
     Map<QueryAndDoc, Double> rrfScore = new HashMap<>();
     HashSet<String> queries = new HashSet<String>();
     // HashSet<String> queryDocs = new HashSet<String>();
@@ -118,6 +123,9 @@ public class RunsFuser {
         queries.add(query);
       }
     }
+    // Instant end = Instant.now();
+    // Duration timeElapsed = Duration.between(start, end);
+    // System.out.println("Getting map of qd and scores: "+ timeElapsed.toSeconds() +" seconds");
 
     return merge(rrfScore, Math.min(topN * queries.size(), rrfScore.size()), topN);
   }
@@ -171,7 +179,8 @@ public class RunsFuser {
    * @throws IllegalArgumentException if less than 2 runs are provided.
    */
   public static ScoredDocs merge(Map<QueryAndDoc, Double> scores, int newLength, int topN) {
-    System.out.println(newLength);
+    Instant start = Instant.now();
+
     List<Map.Entry<QueryAndDoc, Double>> scoreRank = new ArrayList<>(scores.entrySet());
     scoreRank.sort(
         Map.Entry.<QueryAndDoc, Double>comparingByKey(
@@ -186,6 +195,10 @@ public class RunsFuser {
                 Map.Entry.<QueryAndDoc, Double>comparingByKey(
                     Comparator.comparing(QueryAndDoc::doc))));
 
+    Instant end = Instant.now();
+    Duration timeElapsed = Duration.between(start, end);
+    System.out.println("Sorting map: "+ timeElapsed.toSeconds() +" seconds");
+    start = end;
     ScoredDocs scoreDocs = new ScoredDocs();
     scoreDocs.lucene_documents = new Document[newLength];
     scoreDocs.lucene_docids = new int[newLength];
@@ -215,21 +228,110 @@ public class RunsFuser {
       scoreDocs.lucene_docids[index] = rank;
       index++;
     }
-
+    end = Instant.now();
+    timeElapsed = Duration.between(start, end);
+    System.out.println("Reranking for topN: "+ timeElapsed.toSeconds() +" seconds");
     return scoreDocs;
   }
 
-  public static ScoredDocs rrf(List<ScoredDocs> runs, int rrf_k, int depth, int k) {
-    for (ScoredDocs run : runs) {
-      ScoredDocsFuser.rescore(RescoreMethod.RRF, rrf_k, 0, run);
+  public static Hit[] rrf(List<Hit[]> runs, int rrf_k, int depth, int k) {
+    // Instant start = Instant.now();
+    for (Hit[] run : runs) {
+      HitFuser.rescoreRRF(rrf_k, run);
     }
+    // Instant end = Instant.now();
+    // Duration timeElapsed = Duration.between(start, end);
+    // System.out.println("Rescoring runs: "+ timeElapsed.toSeconds() +" seconds");
+    return HitFuser.merge(runs, depth, k);
+  }
 
-    return ScoredDocsFuser.merge(runs, depth, k);
+  // public record Hit(Document query, String docid, double score, int rank){}
+
+  public static Hit[] rrf3(List<Hit[]> runs, int rrf_k, int depth, int topN){
+    // Instant start = Instant.now();
+    int newLength = 0; // find length for appended array
+    for (Hit[] scoredDocs : runs){
+      newLength += scoredDocs.length;
+    }
+    Hit[] scores = new Hit[newLength];
+    int index = 0;
+    for (Hit[] scoredDocs : runs){
+      for(int i = 0; i < scoredDocs.length; i++){
+        scores[index + i] = new Hit(scoredDocs[i]);
+        scores[index + i].score = 1 / ((double)scoredDocs[i].rank + rrf_k);
+        // System.out.println(scores[index + i].score);
+        // scores[index + 1] = new Hit(scoredDocs.lucene_documents[i], scoredDocs.docids[i], 1 / (double)(scoredDocs.lucene_docids[i] + (float)rrf_k), 0);
+      }
+      index += scoredDocs.length;
+    }
+    // System.out.println("appended");
+    Arrays.sort(scores, (s1, s2) -> {
+      String topic1 = s1.query;
+      String topic2 = s2.query;
+      int topicComparison = (topic1.compareTo(topic2));
+      if (topicComparison != 0) {
+        return topicComparison;
+      }
+      int scoreComparison = Double.compare(s2.score, s1.score);
+      int docComparison = s1.docid.compareTo(s2.docid);
+      return docComparison != 0 ? docComparison : scoreComparison;
+    });
+    // System.out.println("sorted");
+    int write = 0;
+    for(int i = 1; i < scores.length; i++){
+      if(scores[i].docid.equals(scores[i-1].docid) && scores[i].query.equals(scores[i-1].query)){
+        scores[write].score += scores[i].score;
+      }
+      else{
+        write++;
+        scores[write] = new Hit(scores[i]);
+      }
+    }
+    write++;
+    // System.out.println(write);
+    scores = Arrays.copyOf(scores, write);
+    Arrays.sort(scores, (s1, s2) -> {
+      String topic1 = s1.query;
+      String topic2 = s2.query;
+      int topicComparison = (topic1.compareTo(topic2));
+      if (topicComparison != 0) {
+        return topicComparison;
+      }
+      int scoreComparison = Double.compare(s2.score, s1.score);
+      int docComparison = s1.docid.compareTo(s2.docid);
+      return scoreComparison != 0 ? scoreComparison : docComparison;
+    });
+    // System.out.println("sorted");
+    write = 0;
+    int rank = 0;
+    String curQuery = "";
+    for(int i = 0; i < scores.length; i++){
+      if(curQuery.equals(scores[i].query) && rank > topN){
+        continue;
+      }
+      else if(curQuery.equals(scores[i].query)){
+        rank++;
+      }
+      else{
+        rank = 1;
+        curQuery = scores[i].query;
+      }
+      scores[write] = new Hit(scores[i]);
+      scores[write].rank = rank;
+      write++;
+    }
+    // System.out.println(write);
+    scores = Arrays.copyOf(scores, write);
+    // Instant end = Instant.now();
+    // Duration timeElapsed = Duration.between(start, end);
+    // System.out.println("Total: "+ timeElapsed.toSeconds() +" seconds");
+    return scores;
   }
 
   public static ScoredDocs rrf2(List<ScoredDocs> runs, int rrf_k, int depth, int topN){
+    Instant start = Instant.now();
     // HashSet<String> queries = new HashSet<String>(); // to calculate arr len based on topN
-    HashSet<String> queryDocs = new HashSet<String>(); // max possible arr len
+    // HashSet<String> queryDocs = new HashSet<String>(); // max possible arr len
 
     int newLength = 0; // find length for appended array
     for (ScoredDocs scoredDocs : runs){
@@ -238,7 +340,6 @@ public class RunsFuser {
 
     ScoredDocs appended = new ScoredDocs();
     appended.lucene_documents = new Document[newLength];
-    appended.lucene_docids = new int[newLength];
     appended.docids = new String[newLength];
     appended.scores = new float[newLength];
 
@@ -247,31 +348,34 @@ public class RunsFuser {
     for (ScoredDocs scoredDocs : runs){
       for(int i = 0; i < scoredDocs.lucene_documents.length; i++){
         appended.lucene_documents[index + i] = scoredDocs.lucene_documents[i];
-        appended.lucene_docids[index + i] = scoredDocs.lucene_docids[i];
         appended.docids[index + i] = scoredDocs.docids[i];
         appended.scores[index + i] = 1 / (float)(scoredDocs.lucene_docids[i] + (float)rrf_k);
-        String query = scoredDocs.lucene_documents[i].get("TOPIC"); 
-        queryDocs.add(query + " " + scoredDocs.docids[i]);
+        // String query = scoredDocs.lucene_documents[i].get("TOPIC"); 
+        // queryDocs.add(query + " " + scoredDocs.docids[i]);
         // queries.add(query);
       }
       index += scoredDocs.lucene_documents.length;
     }
+    Instant end = Instant.now();
+    Duration timeElapsed = Duration.between(start, end);
+    System.out.println("Appending runs: "+ timeElapsed.toSeconds() +" seconds");
+    start = end;
     // System.out.println(queries);
 
     // sorting by query then docid
     ScoredDocsFuser.sortScoredDocs(appended, false, 0);
     ScoredDocs summed = new ScoredDocs();
-    newLength = queryDocs.size();
-    summed.lucene_documents = new Document[newLength];
-    summed.docids = new String[newLength];
-    summed.scores = new float[newLength];
-    // List<Document> lucene_documents = new ArrayList<>(); // topic
-    // List<String> docids = new ArrayList<>(); // docid
-    // List<Float> scores = new ArrayList<>(); // score
+    // newLength = queryDocs.size();
+    // summed.lucene_documents = new Document[newLength];
+    // summed.docids = new String[newLength];
+    // summed.scores = new float[newLength];
+    List<Document> lucene_documents = new ArrayList<>(newLength); // topic
+    List<String> docids = new ArrayList<>(newLength); // docid
+    List<Float> scores = new ArrayList<>(newLength); // score
 
     String curQuery = "", curDoc = "";
     index = 0;
-    System.out.println(newLength); // length after summing same query, samd docid scores
+    // System.out.println(newLength); // length after summing same query, samd docid scores
     // summing scores for same query, docids
     for(int i = 0; i < appended.lucene_documents.length; i++){
       curQuery = appended.lucene_documents[i].get("TOPIC");
@@ -282,32 +386,47 @@ public class RunsFuser {
         i++;
       }
       i--;
-      summed.lucene_documents[index] = appended.lucene_documents[i];
-      summed.docids[index] = curDoc;
-      summed.scores[index] = curScore;
+      // summed.lucene_documents[index] = appended.lucene_documents[i];
+      // summed.docids[index] = curDoc;
+      // summed.scores[index] = curScore;
+      lucene_documents.add(appended.lucene_documents[i]);
+      docids.add(curDoc);
+      scores.add(curScore);
       index++;
     }
+    end = Instant.now();
+    timeElapsed = Duration.between(start, end);
+    System.out.println("Summing scores: "+ timeElapsed.toSeconds() +" seconds");
+    start = end;
+  
+    summed.lucene_documents = lucene_documents.toArray(new Document[0]);
+    summed.docids = docids.toArray(new String[0]);
+    summed.scores = ArrayUtils.toPrimitive(scores.toArray(new Float[scores.size()]), Float.NaN);
+
     int overflow = ScoredDocsFuser.sortScoredDocs(summed, true, topN);
     newLength -= overflow;
-    Document[] lucene_documents = new Document[newLength];
-    int[] lucene_docids = new int[newLength];
-    String[] docids = new String[newLength];
-    float[] scores = new float[newLength];
+    Document[] lucene_documents1 = new Document[newLength];
+    int[] lucene_docids1 = new int[newLength];
+    String[] docids1 = new String[newLength];
+    float[] scores1 = new float[newLength];
     index = 0;
     for(int i = 0; i < summed.lucene_documents.length; i++){
       if(summed.lucene_docids[i] > topN){
         continue;
       }
-      lucene_documents[index] = summed.lucene_documents[i];
-      lucene_docids[index] = summed.lucene_docids[i];
-      docids[index] = summed.docids[i];
-      scores[index] = summed.scores[i];
+      lucene_documents1[index] = summed.lucene_documents[i];
+      lucene_docids1[index] = summed.lucene_docids[i];
+      docids1[index] = summed.docids[i];
+      scores1[index] = summed.scores[i];
       index++;
     }
-    summed.lucene_docids = lucene_docids;
-    summed.lucene_documents = lucene_documents;
-    summed.scores = scores;
-    summed.docids = docids;
+    summed.lucene_docids = lucene_docids1;
+    summed.lucene_documents = lucene_documents1;
+    summed.scores = scores1;
+    summed.docids = docids1;
+    end = Instant.now();
+    timeElapsed = Duration.between(start, end);
+    System.out.println("Sorting by score and limit top n: "+ timeElapsed.toSeconds() +" seconds");
     return summed;
   }
 
@@ -317,35 +436,39 @@ public class RunsFuser {
    * @param runs List of ScoredDocs objects to be fused.
    * @throws IOException If an I/O error occurs while saving the output.
    */
-  public void fuse(List<ScoredDocs> runs) throws IOException {
-    ScoredDocs fusedRun;
+  public void fuse(List<Hit[]> runs) throws IOException {
+    // Instant start = Instant.now();
+    Hit[] fusedRun;
 
     // Select fusion method
     switch (args.method.toLowerCase()) {
-      case LUCENE:
-        fusedRun = reciprocalRankFusion(runs, args.rrf_k, args.depth, args.k);
-        break;
+      // case LUCENE:
+      //   fusedRun = reciprocalRankFusion(runs, args.rrf_k, args.depth, args.k);
+      //   break;
       case METHOD_RRF:
         fusedRun = rrf(runs, args.rrf_k, args.depth, args.k);
         break;
       case APPEND:
-        fusedRun = rrf2(runs, args.rrf_k, args.depth, args.k);
+        fusedRun = rrf3(runs, args.rrf_k, args.depth, args.k);
         break;
-      case METHOD_INTERPOLATION:
-        fusedRun = interpolation(runs, args.alpha, args.depth, args.k);
-        break;
-      case METHOD_AVERAGE:
-        fusedRun = average(runs, args.depth, args.k);
-        break;
-      case METHOD_NORMALIZE:
-        fusedRun = normalize(runs, args.depth, args.k);
-        break;
+      // case METHOD_INTERPOLATION:
+      //   fusedRun = interpolation(runs, args.alpha, args.depth, args.k);
+      //   break;
+      // case METHOD_AVERAGE:
+      //   fusedRun = average(runs, args.depth, args.k);
+      //   break;
+      // case METHOD_NORMALIZE:
+      //   fusedRun = normalize(runs, args.depth, args.k);
+      //   break;
       default:
         throw new IllegalArgumentException("Unknown fusion method: " + args.method + 
             ". Supported methods are: average, rrf, interpolation.");
     }
 
     Path outputPath = Paths.get(args.output);
-    ScoredDocsFuser.saveToTxt(outputPath, args.runtag,  fusedRun);
+    HitFuser.saveToTxt(outputPath, args.runtag,  fusedRun);
+    // Instant end = Instant.now();
+    // Duration timeElapsed = Duration.between(start, end);
+    // System.out.println("Total: "+ timeElapsed.toSeconds() +" seconds");
   }
 }

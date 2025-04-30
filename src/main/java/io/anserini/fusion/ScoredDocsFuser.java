@@ -35,7 +35,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.StoredField;
 
 import io.anserini.search.ScoredDocs;
-
+import java.time.Duration;
+import java.time.Instant;
 public class ScoredDocsFuser {
   public static final String TOPIC = "TOPIC";
 
@@ -202,11 +203,12 @@ public class ScoredDocsFuser {
     scoredDocs.docids = sortedDocids;
     scoredDocs.scores = sortedScores;
     scoredDocs.lucene_docids = sortedRanks;
-    System.out.println(overflow);
+    // System.out.println(overflow);
     return overflow;
   }
 
   public static ScoredDocs merge(List<ScoredDocs> runs, Integer depth, Integer k) {
+    Instant start = Instant.now();
     if (runs.size() < 2) {
       throw new IllegalArgumentException("Merge requires at least 2 runs.");
     }
@@ -224,6 +226,10 @@ public class ScoredDocsFuser {
                   existing.getValue() >= depth ? existing : new AbstractMap.SimpleEntry<>(existing.getKey() + newValue.getKey(), existing.getValue() + 1));
       }
     }
+    Instant end = Instant.now();
+    Duration timeElapsed = Duration.between(start, end);
+    System.out.println("Accumulating scores: "+ timeElapsed.toSeconds() +" seconds");
+    start = end;
     
     List<Document> lucene_documents = new ArrayList<>(); // topic
     List<String> docids = new ArrayList<>(); // docid
@@ -253,7 +259,9 @@ public class ScoredDocsFuser {
     mergedRun.docids = docids.toArray(new String[0]);
     mergedRun.scores = ArrayUtils.toPrimitive(score.toArray(new Float[score.size()]), Float.NaN);
     mergedRun.lucene_docids = ArrayUtils.toPrimitive(rank.toArray(new Integer[0]));
-    
+    end = Instant.now();
+    timeElapsed = Duration.between(start, end);
+    System.out.println("Sort and limit: "+ timeElapsed.toSeconds() +" seconds");
     return mergedRun;
   }
 
