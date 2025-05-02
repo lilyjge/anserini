@@ -52,7 +52,7 @@ public class FuseRuns {
 
   private final Args args;
   private final RunsFuser fuser;
-  private final List<Hit[]> runs = new ArrayList<Hit[]>();
+  private final List<Hits> runs = new ArrayList<Hits>();
 
   public FuseRuns(Args args) throws IOException {
     this.args = args;
@@ -84,7 +84,7 @@ public class FuseRuns {
     for (String runFile : args.runs) {
       try {
         Path path = Paths.get(runFile);
-        Hit[] run = HitFuser.readRun(path, args.resort);
+        Hits run = HitsFuser.readRun(path, args.resort);
         runs.add(run);
       } catch (Exception e) {
         throw new IllegalArgumentException(String.format("Error: %s. Please check the provided arguments. Use the \"-options\" flag to print out detailed information about available options and their usage.\n",
@@ -123,15 +123,15 @@ public class FuseRuns {
       return;
     }
 
-    long startTime = System.nanoTime();
+    // long startTime = System.nanoTime();
     try {
       FuseRuns fuser = new FuseRuns(fuseArgs);
       fuser.run();
     } catch (Exception e) {
       System.err.println(e.getMessage());
     }
-    long endTime = System.nanoTime();
-    long duration = (endTime - startTime);  //divide by 1000000 to get milliseconds.
-    System.out.println("Duration: " + duration/1000000000);
+    // long endTime = System.nanoTime();
+    // long duration = (endTime - startTime);  //divide by 1000000 to get milliseconds.
+    // System.out.println("Duration: " + duration/1000000000);
   }
 }

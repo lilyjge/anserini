@@ -85,12 +85,12 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via averaging.
    */
-  public static Hit[] average(List<Hit[]> runs, int depth, int k) {
-    for (Hit[] run : runs) {
-      HitFuser.scale((1/(double)runs.size()), run);
+  public static Hits average(List<Hits> runs, int depth, int k) {
+    for (Hits run : runs) {
+      HitsFuser.rescore(RescoreMethod.SCALE, 0, (1/(double)runs.size()), run);;
     }
 
-    return HitFuser.merge(runs, depth, k);
+    return HitsFuser.merge(runs, depth, k);
   }
 
   /**
@@ -101,9 +101,9 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via reciprocal rank fusion.
    */
-  public static Hit[] normalize(List<Hit[]> runs, int depth, int k) {
-    for (Hit[] run : runs) {
-      HitFuser.norm(run);
+  public static Hits normalize(List<Hits> runs, int depth, int k) {
+    for (Hits run : runs) {
+      HitsFuser.rescore(RescoreMethod.NORMALIZE, 0, 0, run);
     }
 
     return average(runs, depth, k);
@@ -119,27 +119,27 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via interpolation.
    */  
-  public static Hit[] interpolation(List<Hit[]> runs, double alpha, int depth, int k) {
+  public static Hits interpolation(List<Hits> runs, double alpha, int depth, int k) {
     // Ensure exactly 2 runs are provided, as interpolation requires 2 runs
     if (runs.size() != 2) {
       throw new IllegalArgumentException("Interpolation requires exactly 2 runs");
     }
 
-    HitFuser.scale(alpha, runs.get(0));
-    HitFuser.scale(1 - alpha, runs.get(1));
+    HitsFuser.rescore(RescoreMethod.SCALE, 0, alpha, runs.get(0));
+    HitsFuser.rescore(RescoreMethod.SCALE, 0, 1 - alpha, runs.get(1));
 
-    return HitFuser.merge(runs, depth, k);
+    return HitsFuser.merge(runs, depth, k);
   }
 
-  public static Hit[] rrf(List<Hit[]> runs, int rrf_k, int depth, int k) {
+  public static Hits rrf(List<Hits> runs, int rrf_k, int depth, int k) {
     // Instant start = Instant.now();
-    for (Hit[] run : runs) {
-      HitFuser.rescoreRRF(rrf_k, run);
+    for (Hits run : runs) {
+      HitsFuser.rescore(RescoreMethod.RRF, rrf_k, 0, run);
     }
     // Instant end = Instant.now();
     // Duration timeElapsed = Duration.between(start, end);
     // System.out.println("Rescoring runs: "+ timeElapsed.toSeconds() +" seconds");
-    return HitFuser.merge(runs, depth, k);
+    return HitsFuser.merge(runs, depth, k);
   }
 
   // public record Hit(Document query, String docid, double score, int rank){}
@@ -333,18 +333,18 @@ public class RunsFuser {
    * @param runs List of ScoredDocs objects to be fused.
    * @throws IOException If an I/O error occurs while saving the output.
    */
-  public void fuse(List<Hit[]> runs) throws IOException {
+  public void fuse(List<Hits> runs) throws IOException {
     // Instant start = Instant.now();
-    Hit[] fusedRun;
+    Hits fusedRun;
 
     // Select fusion method
     switch (args.method.toLowerCase()) {
       case METHOD_RRF:
         fusedRun = rrf(runs, args.rrf_k, args.depth, args.k);
         break;
-      case APPEND:
-        fusedRun = rrf3(runs, args.rrf_k, args.depth, args.k);
-        break;
+      // case APPEND:
+      //   fusedRun = rrf3(runs, args.rrf_k, args.depth, args.k);
+      //   break;
       case METHOD_INTERPOLATION:
         fusedRun = interpolation(runs, args.alpha, args.depth, args.k);
         break;
@@ -360,7 +360,7 @@ public class RunsFuser {
     }
 
     Path outputPath = Paths.get(args.output);
-    HitFuser.saveToTxt(outputPath, args.runtag,  fusedRun);
+    HitsFuser.saveToTxt(outputPath, args.runtag,  fusedRun);
     // Instant end = Instant.now();
     // Duration timeElapsed = Duration.between(start, end);
     // System.out.println("Total: "+ timeElapsed.toSeconds() +" seconds");

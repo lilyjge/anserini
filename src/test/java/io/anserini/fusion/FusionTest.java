@@ -25,106 +25,106 @@ import org.junit.Test;
 import io.anserini.TestUtils;
 
 public class FusionTest {
-  // @Test
-  // public void testFuseInterpolation() throws Exception {
-  //   String[] fuseArgs = new String[] {
-  //     "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
-  //     "-output", "runs/fused_run_interp.test",
-  //     "-method", "interpolation",
-  //     "-k", "1000",
-  //     "-depth", "1000",
-  //     "-rrf_k", "60",
-  //     "-alpha", "0.5"};
-  //   FuseRuns.main(fuseArgs);
-    
-  //   TestUtils.checkFile("runs/fused_run_interp.test", new String[]{
-  //     "query1 Q0 doc1 1 5.500000 anserini.fusion",
-  //     "query1 Q0 doc2 2 5.500000 anserini.fusion",
-  //     "query1 Q0 doc3 3 2.500000 anserini.fusion",
-  //     "query1 Q0 doc4 4 1.500000 anserini.fusion",
-  //     "query2 Q0 doc3 1 10.500000 anserini.fusion",
-  //     "query2 Q0 doc1 2 7.000000 anserini.fusion",
-  //     "query2 Q0 doc2 3 6.500000 anserini.fusion",
-  //     "query2 Q0 doc5 4 4.000000 anserini.fusion",
-  //     "query2 Q0 doc6 5 3.500000 anserini.fusion"
-  //   });
-  //   assertTrue(new File("runs/fused_run_interp.test").delete());
-  // }
-
-  // @Test
-  // public void testFuseAvg() throws Exception {
-  //   String[] fuseArgs = new String[] {
-  //     "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
-  //     "-output", "runs/fused_run_avg.test",
-  //     "-method", "average",
-  //     "-k", "1000",
-  //     "-depth", "1000",
-  //     "-rrf_k", "60",
-  //     "-alpha", "0.5"};
-  //   FuseRuns.main(fuseArgs);
-    
-  //   TestUtils.checkFile("runs/fused_run_avg.test", new String[]{
-  //     "query1 Q0 doc1 1 5.500000 anserini.fusion",
-  //     "query1 Q0 doc2 2 5.500000 anserini.fusion",
-  //     "query1 Q0 doc3 3 2.500000 anserini.fusion",
-  //     "query1 Q0 doc4 4 1.500000 anserini.fusion",
-  //     "query2 Q0 doc3 1 10.500000 anserini.fusion",
-  //     "query2 Q0 doc1 2 7.000000 anserini.fusion",
-  //     "query2 Q0 doc2 3 6.500000 anserini.fusion",
-  //     "query2 Q0 doc5 4 4.000000 anserini.fusion",
-  //     "query2 Q0 doc6 5 3.500000 anserini.fusion"
-  //   });
-  //   assertTrue(new File("runs/fused_run_avg.test").delete());
-  // }
-
   @Test
-  public void testFuse() throws Exception {
+  public void testFuseInterpolation() throws Exception {
     String[] fuseArgs = new String[] {
       "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
-      "-output", "runs/fused_run_rrf.test",
-      "-method", "rrf",
+      "-output", "runs/fused_run_interp.test",
+      "-method", "interpolation",
       "-k", "1000",
       "-depth", "1000",
       "-rrf_k", "60",
       "-alpha", "0.5"};
     FuseRuns.main(fuseArgs);
-    // String[] fuseArgs = new String[] {
-    //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-    //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-    //   "-method", "append",
-    //   "-k", "1000",
-    //   "-depth", "1000",
-    //   "-rrf_k", "60",
-    //   "-alpha", "0.5"};
-    // FuseRuns.main(fuseArgs);
-
-    // fuseArgs = new String[] {
-    //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-    //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-    //   "-method", "append",
-    //   "-k", "1000",
-    //   "-depth", "1000",
-    //   "-rrf_k", "60",
-    //   "-alpha", "0.5"};
-    // FuseRuns.main(fuseArgs);
-
-    // fuseArgs = new String[] {
-    //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-    //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-    //   "-method", "lucenerrf",
-    //   "-k", "1000",
-    //   "-depth", "1000",
-    //   "-rrf_k", "60",
-    //   "-alpha", "0.5"};
-    // FuseRuns.main(fuseArgs);
+    
+    TestUtils.checkFile("runs/fused_run_interp.test", new String[]{
+      "query1 Q0 doc1 1 5.500000 anserini.fusion",
+      "query1 Q0 doc2 2 5.500000 anserini.fusion",
+      "query1 Q0 doc3 3 2.500000 anserini.fusion",
+      "query1 Q0 doc4 4 1.500000 anserini.fusion",
+      "query2 Q0 doc3 1 10.500000 anserini.fusion",
+      "query2 Q0 doc1 2 7.000000 anserini.fusion",
+      "query2 Q0 doc2 3 6.500000 anserini.fusion",
+      "query2 Q0 doc5 4 4.000000 anserini.fusion",
+      "query2 Q0 doc6 5 3.500000 anserini.fusion"
+    });
+    assertTrue(new File("runs/fused_run_interp.test").delete());
   }
+
+  @Test
+  public void testFuseAvg() throws Exception {
+    String[] fuseArgs = new String[] {
+      "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
+      "-output", "runs/fused_run_avg.test",
+      "-method", "average",
+      "-k", "1000",
+      "-depth", "1000",
+      "-rrf_k", "60",
+      "-alpha", "0.5"};
+    FuseRuns.main(fuseArgs);
+    
+    TestUtils.checkFile("runs/fused_run_avg.test", new String[]{
+      "query1 Q0 doc1 1 5.500000 anserini.fusion",
+      "query1 Q0 doc2 2 5.500000 anserini.fusion",
+      "query1 Q0 doc3 3 2.500000 anserini.fusion",
+      "query1 Q0 doc4 4 1.500000 anserini.fusion",
+      "query2 Q0 doc3 1 10.500000 anserini.fusion",
+      "query2 Q0 doc1 2 7.000000 anserini.fusion",
+      "query2 Q0 doc2 3 6.500000 anserini.fusion",
+      "query2 Q0 doc5 4 4.000000 anserini.fusion",
+      "query2 Q0 doc6 5 3.500000 anserini.fusion"
+    });
+    assertTrue(new File("runs/fused_run_avg.test").delete());
+  }
+
+  // @Test
+  // public void testFuse() throws Exception {
+  //   String[] fuseArgs = new String[] {
+  //     "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
+  //     "-output", "runs/fused_run_rrf.test",
+  //     "-method", "rrf",
+  //     "-k", "1000",
+  //     "-depth", "1000",
+  //     "-rrf_k", "60",
+  //     "-alpha", "0.5"};
+  //   FuseRuns.main(fuseArgs);
+  //   // String[] fuseArgs = new String[] {
+  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+  //   //   "-method", "append",
+  //   //   "-k", "1000",
+  //   //   "-depth", "1000",
+  //   //   "-rrf_k", "60",
+  //   //   "-alpha", "0.5"};
+  //   // FuseRuns.main(fuseArgs);
+
+  //   // fuseArgs = new String[] {
+  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+  //   //   "-method", "append",
+  //   //   "-k", "1000",
+  //   //   "-depth", "1000",
+  //   //   "-rrf_k", "60",
+  //   //   "-alpha", "0.5"};
+  //   // FuseRuns.main(fuseArgs);
+
+  //   // fuseArgs = new String[] {
+  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+  //   //   "-method", "lucenerrf",
+  //   //   "-k", "1000",
+  //   //   "-depth", "1000",
+  //   //   "-rrf_k", "60",
+  //   //   "-alpha", "0.5"};
+  //   // FuseRuns.main(fuseArgs);
+  // }
 
   @Test
   public void testFuseRRF() throws Exception {
     String[] fuseArgs = new String[] {
       "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
       "-output", "runs/fused_run_rrf.test",
-      "-method", "append",
+      "-method", "rrf",
       "-k", "1000",
       "-depth", "1000",
       "-rrf_k", "60",
@@ -145,29 +145,29 @@ public class FusionTest {
     assertTrue(new File("runs/fused_run_rrf.test").delete());
   }
 
-  // @Test
-  // public void testFuseNormalize() throws Exception {
-  //   String[] fuseArgs = new String[] {
-  //     "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
-  //     "-output", "runs/fused_run_norm.test",
-  //     "-method", "normalize",
-  //     "-k", "1000",
-  //     "-depth", "1000",
-  //     "-rrf_k", "60",
-  //     "-alpha", "0.5"};
-  //   FuseRuns.main(fuseArgs);
+  @Test
+  public void testFuseNormalize() throws Exception {
+    String[] fuseArgs = new String[] {
+      "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
+      "-output", "runs/fused_run_norm.test",
+      "-method", "normalize",
+      "-k", "1000",
+      "-depth", "1000",
+      "-rrf_k", "60",
+      "-alpha", "0.5"};
+    FuseRuns.main(fuseArgs);
     
-  //   TestUtils.checkFile("runs/fused_run_norm.test", new String[]{
-  //     "query1 Q0 doc1 1 0.750000 anserini.fusion",
-  //     "query1 Q0 doc2 2 0.750000 anserini.fusion",
-  //     "query1 Q0 doc3 3 0.000000 anserini.fusion",
-  //     "query1 Q0 doc4 4 0.000000 anserini.fusion",
-  //     "query2 Q0 doc1 1 0.500000 anserini.fusion",
-  //     "query2 Q0 doc3 2 0.500000 anserini.fusion",
-  //     "query2 Q0 doc2 3 0.250000 anserini.fusion",
-  //     "query2 Q0 doc5 4 0.250000 anserini.fusion",
-  //     "query2 Q0 doc6 5 0.000000 anserini.fusion"
-  //   });
-  //   assertTrue(new File("runs/fused_run_norm.test").delete());
-  // }
+    TestUtils.checkFile("runs/fused_run_norm.test", new String[]{
+      "query1 Q0 doc1 1 0.750000 anserini.fusion",
+      "query1 Q0 doc2 2 0.750000 anserini.fusion",
+      "query1 Q0 doc3 3 0.000000 anserini.fusion",
+      "query1 Q0 doc4 4 0.000000 anserini.fusion",
+      "query2 Q0 doc1 1 0.500000 anserini.fusion",
+      "query2 Q0 doc3 2 0.500000 anserini.fusion",
+      "query2 Q0 doc2 3 0.250000 anserini.fusion",
+      "query2 Q0 doc5 4 0.250000 anserini.fusion",
+      "query2 Q0 doc6 5 0.000000 anserini.fusion"
+    });
+    assertTrue(new File("runs/fused_run_norm.test").delete());
+  }
 }
