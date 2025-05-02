@@ -45,15 +45,43 @@ public class HitFuser {
     return run;
   }
 
+  public static void norm(Hit[] scoredDocs){
+    Map<String, List<Integer>> indicesForTopics = new HashMap<String, List<Integer>>(); // topic, list of indices for that topic
+    for (int i = 0; i < scoredDocs.length; i++) {
+      indicesForTopics.computeIfAbsent(scoredDocs[i].query, k -> new ArrayList<>()).add(i);
+    }
+
+    for (List<Integer> topicIndices : indicesForTopics.values()) {
+      int numRecords = topicIndices.size();
+      double minScore = scoredDocs[topicIndices.get(0)].score;
+      double maxScore = scoredDocs[topicIndices.get(numRecords - 1)].score;
+      for (int i = 0; i < numRecords; i++) {
+        int index = topicIndices.get(i);
+        minScore = Double.min(minScore, scoredDocs[index].score);
+        maxScore = Double.max(maxScore, scoredDocs[index].score);
+      }
+
+      for (int i = 0; i < numRecords; i++) {
+        int index = topicIndices.get(i);
+        scoredDocs[index].score = (scoredDocs[index].score - minScore) / (maxScore - minScore);
+      }
+    }
+  }
+
   public static void rescoreRRF(int rrfK, Hit[] scoredDocs) {
-    int length = scoredDocs.length;
-    for (int i = 0; i < length; i++) {
+    for (int i = 0; i < scoredDocs.length; i++) {
       scoredDocs[i].score = 1.0 / (rrfK + (double)scoredDocs[i].rank);
     }
   }
 
+  public static void scale(double scale, Hit[] scoredDocs) {
+    for (int i = 0; i < scoredDocs.length; i++) {
+      scoredDocs[i].score = scale * scoredDocs[i].score;
+    }
+  }
+
   public static Hit[] merge(List<Hit[]> runs, Integer depth, Integer k) {
-    Instant start = Instant.now();
+    // Instant start = Instant.now();
     if (runs.size() < 2) {
       throw new IllegalArgumentException("Merge requires at least 2 runs.");
     }
@@ -71,10 +99,10 @@ public class HitFuser {
                   existing.getValue() >= depth ? existing : new AbstractMap.SimpleEntry<>(existing.getKey() + newValue.getKey(), existing.getValue() + 1));
       }
     }
-    Instant end = Instant.now();
-    Duration timeElapsed = Duration.between(start, end);
-    System.out.println("Accumulating scores: "+ timeElapsed.toSeconds() +" seconds");
-    start = end;
+    // Instant end = Instant.now();
+    // Duration timeElapsed = Duration.between(start, end);
+    // System.out.println("Accumulating scores: "+ timeElapsed.toSeconds() +" seconds");
+    // start = end;
     
     List<Hit> merged = new ArrayList<>();
     for (String query : docScores.keySet()) {
@@ -92,9 +120,9 @@ public class HitFuser {
     }
 
     Hit[] mergedRun = merged.toArray(new Hit[0]);
-    end = Instant.now();
-    timeElapsed = Duration.between(start, end);
-    System.out.println("Sort and limit: "+ timeElapsed.toSeconds() +" seconds");
+    // end = Instant.now();
+    // timeElapsed = Duration.between(start, end);
+    // System.out.println("Sort and limit: "+ timeElapsed.toSeconds() +" seconds");
     return mergedRun;
   }
 

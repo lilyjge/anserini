@@ -44,7 +44,6 @@ public class RunsFuser {
 
   private static final String METHOD_RRF = "rrf";
   private static final String APPEND = "append";
-  private static final String LUCENE = "lucenerrf";
   private static final String METHOD_INTERPOLATION = "interpolation";
   private static final String METHOD_AVERAGE = "average";
   private static final String METHOD_NORMALIZE = "normalize";
@@ -86,48 +85,12 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via averaging.
    */
-  public static ScoredDocs average(List<ScoredDocs> runs, int depth, int k) {
-    for (ScoredDocs run : runs) {
-      ScoredDocsFuser.rescore(RescoreMethod.SCALE, 0, (1/(double)runs.size()), run);
+  public static Hit[] average(List<Hit[]> runs, int depth, int k) {
+    for (Hit[] run : runs) {
+      HitFuser.scale((1/(double)runs.size()), run);
     }
 
-    return ScoredDocsFuser.merge(runs, depth, k);
-  }
-
-  /**
-   * Perform reciprocal rank fusion on a list of TrecRun objects. Implementation follows Cormack et al.
-   * (SIGIR 2009) paper titled "Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods."
-   *
-   * @param runs List of ScoredDocs objects.
-   * @param rrf_k Parameter to avoid vanishing importance of lower-ranked documents. Note that this is different from the *k* in top *k* retrieval; set to 60 by default, per Cormack et al.
-   * @param depth Maximum number of results from each input run to consider. Set to Integer.MAX_VALUE by default, which indicates that the complete list of results is considered.
-   * @param topN Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
-   * @return Output ScoredDocs that combines input runs via reciprocal rank fusion.
-   */
-  public static ScoredDocs reciprocalRankFusion(List<ScoredDocs> runs, int rrf_k, int depth, int topN) {
-    // Compute the rrf score as a double to reduce accuracy loss due to floating-point arithmetic.
-    // Instant start = Instant.now();
-    Map<QueryAndDoc, Double> rrfScore = new HashMap<>();
-    HashSet<String> queries = new HashSet<String>();
-    // HashSet<String> queryDocs = new HashSet<String>();
-    for (ScoredDocs topDoc : runs) {
-      // A document is a hit globally if it is a hit for any of the top docs, so we compute the
-      // total hit count as the max total hit count.
-      for (int i = 0; i < topDoc.lucene_documents.length; ++i) {
-        int rank = topDoc.lucene_docids[i];
-        double rrfScoreContribution = 1d / Math.addExact(rrf_k, rank);
-        String query = topDoc.lucene_documents[i].get(ScoredDocsFuser.TOPIC);
-        rrfScore.compute(
-            new QueryAndDoc(query, topDoc.docids[i]),
-            (qd, score) -> (score == null ? 0 : score) + rrfScoreContribution);
-        queries.add(query);
-      }
-    }
-    // Instant end = Instant.now();
-    // Duration timeElapsed = Duration.between(start, end);
-    // System.out.println("Getting map of qd and scores: "+ timeElapsed.toSeconds() +" seconds");
-
-    return merge(rrfScore, Math.min(topN * queries.size(), rrfScore.size()), topN);
+    return HitFuser.merge(runs, depth, k);
   }
 
   /**
@@ -138,9 +101,9 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via reciprocal rank fusion.
    */
-  public static ScoredDocs normalize(List<ScoredDocs> runs, int depth, int k) {
-    for (ScoredDocs run : runs) {
-      ScoredDocsFuser.rescore(RescoreMethod.NORMALIZE, 0, 0, run);
+  public static Hit[] normalize(List<Hit[]> runs, int depth, int k) {
+    for (Hit[] run : runs) {
+      HitFuser.norm(run);
     }
 
     return average(runs, depth, k);
@@ -156,82 +119,16 @@ public class RunsFuser {
    * @param k Length of final results list. Set to Integer.MAX_VALUE by default, which indicates that the union of all input documents are ranked.
    * @return Output ScoredDocs that combines input runs via interpolation.
    */  
-  public static ScoredDocs interpolation(List<ScoredDocs> runs, double alpha, int depth, int k) {
+  public static Hit[] interpolation(List<Hit[]> runs, double alpha, int depth, int k) {
     // Ensure exactly 2 runs are provided, as interpolation requires 2 runs
     if (runs.size() != 2) {
       throw new IllegalArgumentException("Interpolation requires exactly 2 runs");
     }
 
-    ScoredDocsFuser.rescore(RescoreMethod.SCALE, 0, alpha, runs.get(0));
-    ScoredDocsFuser.rescore(RescoreMethod.SCALE, 0, 1 - alpha, runs.get(1));
+    HitFuser.scale(alpha, runs.get(0));
+    HitFuser.scale(1 - alpha, runs.get(1));
 
-    return ScoredDocsFuser.merge(runs, depth, k);
-  }
-
-  /**
-   * Merges multiple ScoredDocs instances into a single ScoredDocs instance.
-   * The merged ScoredDocs will contain the top documents for each topic, with scores summed across the input runs.
-   *
-   * @param scores  List of ScoredDocs instances to merge.
-   * @param newLength Maximum number of documents to consider from each run for each topic (null for no limit).
-   * @param topN     Maximum number of top documents to include in the merged run for each topic (null for no limit).
-   * @return A new ScoredDocs instance containing the merged results.
-   * @throws IllegalArgumentException if less than 2 runs are provided.
-   */
-  public static ScoredDocs merge(Map<QueryAndDoc, Double> scores, int newLength, int topN) {
-    Instant start = Instant.now();
-
-    List<Map.Entry<QueryAndDoc, Double>> scoreRank = new ArrayList<>(scores.entrySet());
-    scoreRank.sort(
-        Map.Entry.<QueryAndDoc, Double>comparingByKey(
-          Comparator.comparing(QueryAndDoc::query)
-        )
-          .thenComparing(
-          // Sort by descending score
-            Map.Entry.<QueryAndDoc, Double>comparingByValue()
-                .reversed())
-            // Tie-break by doc ID, then shard index (like TopDocs#merge)
-            .thenComparing(
-                Map.Entry.<QueryAndDoc, Double>comparingByKey(
-                    Comparator.comparing(QueryAndDoc::doc))));
-
-    Instant end = Instant.now();
-    Duration timeElapsed = Duration.between(start, end);
-    System.out.println("Sorting map: "+ timeElapsed.toSeconds() +" seconds");
-    start = end;
-    ScoredDocs scoreDocs = new ScoredDocs();
-    scoreDocs.lucene_documents = new Document[newLength];
-    scoreDocs.lucene_docids = new int[newLength];
-    scoreDocs.docids = new String[newLength];
-    scoreDocs.scores = new float[newLength];
-    int rank = 0;
-    int index = 0;
-    String curQuery = "";
-    for (int i = 0; i < scoreRank.size(); i++) {
-      Map.Entry<QueryAndDoc, Double> entry = scoreRank.get(i);
-      String query = entry.getKey().query;
-      if(query.equals(curQuery) && rank >= topN){
-        continue;
-      }
-      else if(query.equals(curQuery)){
-        rank++;
-      }
-      else{
-        rank = 1;
-        curQuery = query;
-      }
-      scoreDocs.docids[index] = entry.getKey().doc;
-      scoreDocs.scores[index] = entry.getValue().floatValue();
-      Document doc = new Document();
-      doc.add(new StoredField(ScoredDocsFuser.TOPIC, query));
-      scoreDocs.lucene_documents[index] = doc;
-      scoreDocs.lucene_docids[index] = rank;
-      index++;
-    }
-    end = Instant.now();
-    timeElapsed = Duration.between(start, end);
-    System.out.println("Reranking for topN: "+ timeElapsed.toSeconds() +" seconds");
-    return scoreDocs;
+    return HitFuser.merge(runs, depth, k);
   }
 
   public static Hit[] rrf(List<Hit[]> runs, int rrf_k, int depth, int k) {
@@ -442,24 +339,21 @@ public class RunsFuser {
 
     // Select fusion method
     switch (args.method.toLowerCase()) {
-      // case LUCENE:
-      //   fusedRun = reciprocalRankFusion(runs, args.rrf_k, args.depth, args.k);
-      //   break;
       case METHOD_RRF:
         fusedRun = rrf(runs, args.rrf_k, args.depth, args.k);
         break;
       case APPEND:
         fusedRun = rrf3(runs, args.rrf_k, args.depth, args.k);
         break;
-      // case METHOD_INTERPOLATION:
-      //   fusedRun = interpolation(runs, args.alpha, args.depth, args.k);
-      //   break;
-      // case METHOD_AVERAGE:
-      //   fusedRun = average(runs, args.depth, args.k);
-      //   break;
-      // case METHOD_NORMALIZE:
-      //   fusedRun = normalize(runs, args.depth, args.k);
-      //   break;
+      case METHOD_INTERPOLATION:
+        fusedRun = interpolation(runs, args.alpha, args.depth, args.k);
+        break;
+      case METHOD_AVERAGE:
+        fusedRun = average(runs, args.depth, args.k);
+        break;
+      case METHOD_NORMALIZE:
+        fusedRun = normalize(runs, args.depth, args.k);
+        break;
       default:
         throw new IllegalArgumentException("Unknown fusion method: " + args.method + 
             ". Supported methods are: average, rrf, interpolation.");
