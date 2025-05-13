@@ -60,7 +60,7 @@ public class HitsFuser {
     }
   
     if (reSort) {
-      HitsFuser.sortHits(hits);
+      HitsFuser.sortHits(hits, false);
     }
 
     return hits;
@@ -184,7 +184,7 @@ public class HitsFuser {
    * 
    * @param scoredDocs ScoredDocs object to be sorted.
    */
-  public static void sortHits(Hits scoredDocs){
+  public static void sortHits(Hits scoredDocs, boolean byDocs){
     Integer[] indices = new Integer[scoredDocs.query.length];
     for (int i = 0; i < indices.length; i++) {
       indices[i] = i;
@@ -199,6 +199,7 @@ public class HitsFuser {
       }
       int scoreComparison = Double.compare(scoredDocs.score[index2], scoredDocs.score[index1]);
       int docComparison = scoredDocs.docid[index1].compareTo(scoredDocs.docid[index2]);
+      if(byDocs) return docComparison != 0 ? docComparison : scoreComparison;
       return scoreComparison != 0 ? scoreComparison : docComparison;
     });
 
@@ -234,7 +235,7 @@ public class HitsFuser {
       throw new IllegalStateException("Nothing to save. ScoredDocs is empty");
     }
 
-    HitsFuser.sortHits(run);
+    HitsFuser.sortHits(run, false);
     try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
       for (int i = 0; i < run.query.length; i++) {
         writer.write(String.format("%s Q0 %s %d %.6f %s%n", 

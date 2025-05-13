@@ -77,54 +77,54 @@ public class FusionTest {
     assertTrue(new File("runs/fused_run_avg.test").delete());
   }
 
-  // @Test
-  // public void testFuse() throws Exception {
-  //   String[] fuseArgs = new String[] {
-  //     "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
-  //     "-output", "runs/fused_run_rrf.test",
-  //     "-method", "rrf",
-  //     "-k", "1000",
-  //     "-depth", "1000",
-  //     "-rrf_k", "60",
-  //     "-alpha", "0.5"};
-  //   FuseRuns.main(fuseArgs);
-  //   // String[] fuseArgs = new String[] {
-  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-  //   //   "-method", "append",
-  //   //   "-k", "1000",
-  //   //   "-depth", "1000",
-  //   //   "-rrf_k", "60",
-  //   //   "-alpha", "0.5"};
-  //   // FuseRuns.main(fuseArgs);
+  @Test
+  public void testFuse() throws Exception {
+    // String[] fuseArgs = new String[] {
+    //   "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
+    //   "-output", "runs/fused_run_rrf.test",
+    //   "-method", "rrf",
+    //   "-k", "1000",
+    //   "-depth", "1000",
+    //   "-rrf_k", "60",
+    //   "-alpha", "0.5"};
+    // FuseRuns.main(fuseArgs);
+    String[] fuseArgs = new String[] {
+      "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+      "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+      "-method", "append",
+      "-k", "1000",
+      "-depth", "1000",
+      "-rrf_k", "60",
+      "-alpha", "0.5"};
+    FuseRuns.main(fuseArgs);
 
-  //   // fuseArgs = new String[] {
-  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-  //   //   "-method", "append",
-  //   //   "-k", "1000",
-  //   //   "-depth", "1000",
-  //   //   "-rrf_k", "60",
-  //   //   "-alpha", "0.5"};
-  //   // FuseRuns.main(fuseArgs);
+    fuseArgs = new String[] {
+      "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+      "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+      "-method", "rrf",
+      "-k", "1000",
+      "-depth", "1000",
+      "-rrf_k", "60",
+      "-alpha", "0.5"};
+    FuseRuns.main(fuseArgs);
 
-  //   // fuseArgs = new String[] {
-  //   //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
-  //   //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
-  //   //   "-method", "lucenerrf",
-  //   //   "-k", "1000",
-  //   //   "-depth", "1000",
-  //   //   "-rrf_k", "60",
-  //   //   "-alpha", "0.5"};
-  //   // FuseRuns.main(fuseArgs);
-  // }
+    // fuseArgs = new String[] {
+    //   "-runs", "runs/run.inverted.beir-v1.0.0-quora.flat.test.bm25 runs/run.flat.beir-v1.0.0-quora.bge-base-en-v1.5.test.bge-flat-onnx",
+    //   "-output", "runs/runs.fuse.rrf.beir-v1.0.0-quora.flat.bm25.bge-base-en-v1.5.bge-flat-onnx.topics.beir-v1.0.0-quora.test.txt",
+    //   "-method", "lucenerrf",
+    //   "-k", "1000",
+    //   "-depth", "1000",
+    //   "-rrf_k", "60",
+    //   "-alpha", "0.5"};
+    // FuseRuns.main(fuseArgs);
+  }
 
   @Test
   public void testFuseRRF() throws Exception {
     String[] fuseArgs = new String[] {
       "-runs", "src/test/resources/sample_runs/run1 src/test/resources/sample_runs/run2",
       "-output", "runs/fused_run_rrf.test",
-      "-method", "rrf",
+      "-method", "append",
       "-k", "1000",
       "-depth", "1000",
       "-rrf_k", "60",
