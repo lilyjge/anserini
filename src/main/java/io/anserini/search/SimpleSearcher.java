@@ -144,6 +144,9 @@ public class SimpleSearcher implements Closeable {
     this.useRocchio = false;
     cascade = new RerankerCascade<String>();
     cascade.add(new ScoreTiesAdjusterReranker<String>());
+
+    this.searcher = new IndexSearcher(reader);
+    this.searcher.setSimilarity(similarity);
   }
 
   /**
@@ -151,7 +154,7 @@ public class SimpleSearcher implements Closeable {
    *
    * @param analyzer analyzer to use
    */
-  public void set_analyzer(Analyzer analyzer) {
+  public synchronized void set_analyzer(Analyzer analyzer) {
     this.analyzer = analyzer;
   }
 
@@ -169,7 +172,7 @@ public class SimpleSearcher implements Closeable {
    *
    * @param language language
    */
-  public void set_language(String language) {
+  public synchronized void set_language(String language) {
     if (language.equals("ar")) {
       this.analyzer = new ArabicAnalyzer();
     } else if (language.equals("bn")) {
@@ -239,7 +242,7 @@ public class SimpleSearcher implements Closeable {
   /**
    * Disables RM3 query expansion.
    */
-  public void unset_rm3() {
+  public synchronized void unset_rm3() {
     this.useRM3 = false;
     cascade = new RerankerCascade<String>();
     cascade.add(new ScoreTiesAdjusterReranker<String>());
@@ -248,7 +251,7 @@ public class SimpleSearcher implements Closeable {
   /**
    * Enables RM3 query expansion with default parameters.
    */
-  public void set_rm3() {
+  public synchronized void set_rm3() {
     SearchCollection.Args defaults = new SearchCollection.Args();
     set_rm3(Integer.parseInt(defaults.rm3_fbTerms[0]), Integer.parseInt(defaults.rm3_fbDocs[0]),
         Float.parseFloat(defaults.rm3_originalQueryWeight[0]));
@@ -259,7 +262,7 @@ public class SimpleSearcher implements Closeable {
    *
    * @param collectionClass class for on-the-fly document parsing if index does not contain docvectors
    */
-  public void set_rm3(String collectionClass) {
+  public synchronized void set_rm3(String collectionClass) {
     SearchCollection.Args defaults = new SearchCollection.Args();
     set_rm3(collectionClass, Integer.parseInt(defaults.rm3_fbTerms[0]), Integer.parseInt(defaults.rm3_fbDocs[0]),
         Float.parseFloat(defaults.rm3_originalQueryWeight[0]));
@@ -272,7 +275,7 @@ public class SimpleSearcher implements Closeable {
    * @param fbDocs number of expansion documents
    * @param originalQueryWeight weight to assign to the original query
    */
-  public void set_rm3(int fbTerms, int fbDocs, float originalQueryWeight) {
+  public synchronized void set_rm3(int fbTerms, int fbDocs, float originalQueryWeight) {
     set_rm3(null, fbTerms, fbDocs, originalQueryWeight, false, true);
   }
 
@@ -284,7 +287,7 @@ public class SimpleSearcher implements Closeable {
    * @param fbDocs number of expansion documents
    * @param originalQueryWeight weight to assign to the original query
    */
-  public void set_rm3(String collectionClass, int fbTerms, int fbDocs, float originalQueryWeight) {
+  public synchronized void set_rm3(String collectionClass, int fbTerms, int fbDocs, float originalQueryWeight) {
     set_rm3(collectionClass, fbTerms, fbDocs, originalQueryWeight, false, true);
   }
 
@@ -299,7 +302,7 @@ public class SimpleSearcher implements Closeable {
    * @param filterTerms whether to filter terms to be English only
    */
   @SuppressWarnings("unchecked")
-  public void set_rm3(String collectionClass, int fbTerms, int fbDocs, float originalQueryWeight, boolean outputQuery, boolean filterTerms) {
+  public synchronized void set_rm3(String collectionClass, int fbTerms, int fbDocs, float originalQueryWeight, boolean outputQuery, boolean filterTerms) {
     Class<? extends DocumentCollection<?>>  clazz = null;
     try {
       if (collectionClass != null) {
@@ -327,7 +330,7 @@ public class SimpleSearcher implements Closeable {
   /**
    * Disables Rocchio query expansion.
    */
-  public void unset_rocchio() {
+  public synchronized void unset_rocchio() {
     this.useRocchio = false;
     cascade = new RerankerCascade<String>();
     cascade.add(new ScoreTiesAdjusterReranker<String>());
@@ -336,7 +339,7 @@ public class SimpleSearcher implements Closeable {
   /**
    * Enables Rocchio query expansion with default parameters.
    */
-  public void set_rocchio() {
+  public synchronized void set_rocchio() {
     SearchCollection.Args defaults = new SearchCollection.Args();
     set_rocchio(null, Integer.parseInt(defaults.rocchio_topFbTerms[0]), Integer.parseInt(defaults.rocchio_topFbDocs[0]),
         Integer.parseInt(defaults.rocchio_bottomFbTerms[0]), Integer.parseInt(defaults.rocchio_bottomFbDocs[0]),
@@ -349,7 +352,7 @@ public class SimpleSearcher implements Closeable {
    *
    * @param collectionClass class for on-the-fly document parsing if index does not contain docvectors
    */
-  public void set_rocchio(String collectionClass) {
+  public synchronized void set_rocchio(String collectionClass) {
     SearchCollection.Args defaults = new SearchCollection.Args();
     set_rocchio(collectionClass, Integer.parseInt(defaults.rocchio_topFbTerms[0]), Integer.parseInt(defaults.rocchio_topFbDocs[0]),
         Integer.parseInt(defaults.rocchio_bottomFbTerms[0]), Integer.parseInt(defaults.rocchio_bottomFbDocs[0]),
@@ -372,7 +375,7 @@ public class SimpleSearcher implements Closeable {
    * @param useNegative flag to use negative feedback
    */
   @SuppressWarnings("unchecked")
-  public void set_rocchio(String collectionClass, int topFbTerms, int topFbDocs, int bottomFbTerms, int bottomFbDocs, float alpha, float beta, float gamma, boolean outputQuery, boolean useNegative) {
+  public synchronized void set_rocchio(String collectionClass, int topFbTerms, int topFbDocs, int bottomFbTerms, int bottomFbDocs, float alpha, float beta, float gamma, boolean outputQuery, boolean useNegative) {
     Class<? extends DocumentCollection<?>>  clazz = null;
     try {
       if (collectionClass != null) {
@@ -393,7 +396,7 @@ public class SimpleSearcher implements Closeable {
    *
    * @param mu mu smoothing parameter
    */
-  public void set_qld(float mu) {
+  public synchronized void set_qld(float mu) {
     this.similarity = new LMDirichletSimilarity(mu);
 
     // We need to re-initialize the searcher
@@ -407,7 +410,7 @@ public class SimpleSearcher implements Closeable {
    * @param k1 k1 parameter
    * @param b b parameter
    */
-  public void set_bm25(float k1, float b) {
+  public synchronized void set_bm25(float k1, float b) {
     this.similarity = new BM25Similarity(k1, b);
 
     // We need to re-initialize the searcher
@@ -430,12 +433,6 @@ public class SimpleSearcher implements Closeable {
    * @return the number of documents in the index
    */
    public int get_total_num_docs(){
-     // Create an IndexSearch only once. Note that the object is thread safe.
-     if (searcher == null) {
-       searcher = new IndexSearcher(reader);
-       searcher.setSimilarity(similarity);
-     }
-
      return searcher.getIndexReader().maxDoc();
    }
 
@@ -520,11 +517,8 @@ public class SimpleSearcher implements Closeable {
                                                       int k,
                                                       int threads,
                                                       Map<String, Float> fields) {
-    // Create the IndexSearcher here, if needed. We do it here because if we leave the creation to the search
-    // method, we might end up with a race condition as multiple threads try to concurrently create the IndexSearcher.
-    if (searcher == null) {
-      searcher = new IndexSearcher(reader);
-      searcher.setSimilarity(similarity);
+    if (threads < 1) {
+      throw new IllegalArgumentException("threads must be >= 1");
     }
 
     ConcurrentHashMap<String, ScoredDoc[]> results = new ConcurrentHashMap<>();
@@ -550,7 +544,7 @@ public class SimpleSearcher implements Closeable {
       });
     }
 
-    try (ExecutorService executor = Executors.newWorkStealingPool()) {
+    try (ExecutorService executor = Executors.newWorkStealingPool(threads)) {
       // block until all tasks are completed
       executor.invokeAll(tasks);
     } catch (InterruptedException e) {
@@ -621,12 +615,6 @@ public class SimpleSearcher implements Closeable {
 
   // internal implementation
   protected ScoredDoc[] _search(Query query, List<String> queryTokens, String queryString, int k) throws IOException {
-    // Create an IndexSearch only once. Note that the object is thread safe.
-    if (searcher == null) {
-      searcher = new IndexSearcher(reader);
-      searcher.setSimilarity(similarity);
-    }
-
     SearchCollection.Args searchArgs = new SearchCollection.Args();
     searchArgs.hits = k;
 
@@ -670,12 +658,6 @@ public class SimpleSearcher implements Closeable {
   // internal implementation:
   // This initial implementation is very janky. We basically still perform retrieval, but just throw away the results.
   protected Map<String, Float> _get_feedback_terms(Query query, List<String> queryTokens, String queryString, int k) throws IOException {
-    // Create an IndexSearch only once. Note that the object is thread safe.
-    if (searcher == null) {
-      searcher = new IndexSearcher(reader);
-      searcher.setSimilarity(similarity);
-    }
-
     SearchCollection.Args searchArgs = new SearchCollection.Args();
     searchArgs.hits = k;
 
@@ -719,9 +701,6 @@ public class SimpleSearcher implements Closeable {
                                    String q,
                                    Map<String, Float> fields,
                                    int k) throws IOException {
-    IndexSearcher searcher = new IndexSearcher(reader);
-    searcher.setSimilarity(similarity);
-
     Query query = generator.buildQuery(fields, analyzer, q);
     List<String> queryTokens = AnalyzerUtils.analyze(analyzer, q);
 
